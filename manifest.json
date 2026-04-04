@@ -1,0 +1,11 @@
+{
+  "domain": "homekit_virtual_remote",
+  "name": "HomeKit 虚拟遥控器",
+  "documentation": "https://github.com/maozheng92/homekit_virtual_remote",
+  "dependencies": [],
+  "codeowners": ["@maozheng92"],
+  "config_flow": true,
+  "iot_class": "local_push",
+  "requirements": ["adb_shell>=0.4.0"],
+  "version": "1.1.0"
+}

@@ -1,0 +1,94 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "创建遥控器",
+        "data": {
+          "name": "设备名称",
+          "scan_action": "🔍 扫描局域网设备",
+          "device_ip": "设备 IP 地址",
+          "remote_mode": "控制模式"
+        }
+      }
+    },
+    "abort": {
+      "no_sources": "当前没有任何输入源可以删除。"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "遥控器设置",
+        "menu_options": {
+          "basic_config": "🛠️ 基础设置 (IP/模式)",
+          "pwr_btn": "🔌 电源按键脚本",
+          "nav_btn": "🧭 导航按键脚本",
+          "media_btn": "🔊 音量媒体脚本",
+          "source_config": "📺 输入源与 App 管理"
+        }
+      },
+      "basic_config": {
+        "title": "基础设置",
+        "data": {
+          "device_ip": "设备 IP",
+          "remote_mode": "控制模式",
+          "power_sensor": "功率传感器 (可选)",
+          "binary_sensor": "传感器"
+        }
+      },
+      "pwr_btn": {
+        "title": "电源按键脚本",
+        "data": {
+          "btn_power_on": "开机动作",
+          "btn_power_off": "关机动作"
+        }
+      },
+      "nav_btn": {
+        "title": "导航按键脚本",
+        "data": {
+          "arrow_up": "上",
+          "arrow_down": "下",
+          "arrow_left": "左",
+          "arrow_right": "右",
+          "select": "确认",
+          "back": "返回",
+          "information": "菜单"
+        }
+      },
+      "media_btn": {
+        "title": "音量媒体脚本",
+        "data": {
+          "btn_volume_up": "音量+",
+          "btn_volume_down": "音量-",
+          "btn_mute": "静音",
+          "btn_play_pause": "播放/暂停"
+        }
+      },
+      "source_config": {
+        "title": "输入源管理",
+        "description": "当前列表：\n{current_sources}",
+        "data": {
+          "action": "操作选择"
+        }
+      },
+      "source_add": {
+        "title": "添加输入源",
+        "data": {
+          "name": "名称",
+          "id": "包名/ID (可选)"
+        }
+      },
+      "source_del": {
+        "title": "删除输入源",
+        "description": "请选择要移除的输入源：",
+        "data": {
+          "idx": "选择输入源"
+        }
+      },
+      "sync_done": {
+        "title": "同步成功",
+        "description": "{msg}"
+      }
+    }
+  }
+}
