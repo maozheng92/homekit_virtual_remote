@@ -1,0 +1,5 @@
+{
+  "name": "homekit virtual remote",
+  "homeassistant": "2025.9",
+  "render_readme": true
+}
