@@ -114,8 +114,14 @@ class HKVirtualRemote(MediaPlayerEntity):
             try:
                 if p_state and float(p_state.state) > 1.5: return True
             except: pass
+        
+        # 2. 传感器
+        if self._binary_sensor:
+            b_state = self.hass.states.get(self._binary_sensor)
+            if b_state and b_state.state.lower() == "on":
+                return True
 
-        # 2. 斐讯 API 检测
+        # 3. 斐讯 API 检测
         if self._mode == MODE_PHICOMM and self._ip:
             try:
                 session = async_get_clientsession(self.hass)
@@ -123,26 +129,18 @@ class HKVirtualRemote(MediaPlayerEntity):
                     return r.status == 200
             except: pass
         
-        # 3. ADB 状态
+        # 4. ADB 状态
         elif self._mode == MODE_ADB and self._adb:
             return getattr(self._adb, "_available", False)
             
-        # 4. 网络 Ping 兜底
+        # 5. 网络 Ping 兜底
         elif self._ip:
             res = await self.hass.async_add_executor_job(
                 os.system, f"ping -c 1 -W 0.5 {self._ip} > /dev/null 2>&1"
             )
             return res == 0
         return False
-        
-        # 5. 传感器状态
-        bin_sensor = self._config.get("binary_sensor")
-        if bin_sensor:
-            b_state = self.hass.states.get(bin_sensor)
-            if b_state:
-                # binary_sensor: "on" = 在线, "off" = 离线
-                if b_state.state.lower() == "on":
-                    return True
+
 
     async def _run(self, key):
         """执行指令发送"""

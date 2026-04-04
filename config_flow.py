@@ -41,6 +41,17 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
         if not text: return "未知"
         try: return text.encode('iso-8859-1').decode('utf-8')
         except: return text
+    
+    def _list_binary_sensors(self):
+        """返回所有 binary_sensor 实体列表"""
+        entities = []
+        for state in self.hass.states.async_all():
+            if state.entity_id.startswith("binary_sensor."):
+                entities.append({
+                    "label": state.entity_id,
+                    "value": state.entity_id
+                })
+        return entities
 
     async def _update_entry(self):
         final_config = {k: (None if v in ["", [], {}] else v) for k, v in self.options.items()}
@@ -51,24 +62,103 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
         return self.async_show_menu(step_id="init", menu_options=["basic_config", "pwr_btn", "nav_btn", "media_btn", "source_config"])
 
     async def async_step_basic_config(self, user_input=None):
-        keys = [CONF_DEVICE_IP, CONF_MODE, CONF_POWER_SENSOR, CONF_BINARY_SENSOR]
+        keys = [
+            CONF_DEVICE_IP,
+            CONF_MODE,
+            CONF_SUBMODE,
+            CONF_POWER_SENSOR,
+            CONF_BINARY_SENSOR,
+        ]
+
+        # ========== 用户提交 ==========
         if user_input is not None:
-            for key in keys: self.options[key] = user_input.get(key)
+
+            mode = user_input.get(CONF_MODE)
+            sub = user_input.get(CONF_SUBMODE)
+
+            # 一级模式不是自定义 → 清空所有传感器
+            if mode != MODE_ACTION:
+                user_input[CONF_SUBMODE] = None
+                user_input[CONF_POWER_SENSOR] = None
+                user_input[CONF_BINARY_SENSOR] = None
+
+            else:
+                # 自定义模式下的二选一逻辑
+                if sub == SUBMODE_POWER:
+                    user_input[CONF_BINARY_SENSOR] = None
+                elif sub == SUBMODE_BINARY:
+                    user_input[CONF_POWER_SENSOR] = None
+
+            # 写入配置
+            for key in keys:
+                self.options[key] = user_input.get(key)
+
             return await self._update_entry()
-        return self.async_show_form(step_id="basic_config", data_schema=vol.Schema({
-            vol.Optional(CONF_DEVICE_IP, description={"suggested_value": self.options.get(CONF_DEVICE_IP)}): selector.TextSelector(),
-            vol.Required(CONF_MODE, default=self.options.get(CONF_MODE, MODE_ACTION)): selector.SelectSelector(selector.SelectSelectorConfig(
-                options=[{"label": "自定义", "value": MODE_ACTION}, {"label": "斐讯", "value": MODE_PHICOMM}, {"label": "ADB", "value": MODE_ADB}],
-                mode=selector.SelectSelectorMode.LIST
-            )),
-            vol.Optional(CONF_POWER_SENSOR, description={"suggested_value": self.options.get(CONF_POWER_SENSOR)}): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+
+        # ========== 构建 UI ==========
+        mode = self.options.get(CONF_MODE, MODE_ACTION)
+        sub = self.options.get(CONF_SUBMODE, SUBMODE_POWER)
+
+        schema = {
             vol.Optional(
-                CONF_BINARY_SENSOR,
-                description={"suggested_value": self.options.get(CONF_BINARY_SENSOR)}
-            ): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="binary_sensor")
+                CONF_DEVICE_IP,
+                description={"suggested_value": self.options.get(CONF_DEVICE_IP)}
+            ): selector.TextSelector(),
+
+            vol.Required(
+                CONF_MODE,
+                default=mode
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=[
+                        {"label": "自定义", "value": MODE_ACTION},
+                        {"label": "斐讯", "value": MODE_PHICOMM},
+                        {"label": "ADB", "value": MODE_ADB},
+                    ],
+                    mode=selector.SelectSelectorMode.LIST
+                )
             ),
-        }))
+        }
+
+        # 一级模式 = 自定义 → 显示子模式
+        if mode == MODE_ACTION:
+
+            schema[vol.Required(
+                CONF_SUBMODE,
+                default=sub
+            )] = selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=[
+                        {"label": "功率传感器（可选）", "value": SUBMODE_POWER},
+                        {"label": "传感器", "value": SUBMODE_BINARY},
+                    ],
+                    mode=selector.SelectSelectorMode.LIST
+                )
+            )
+
+            # 子模式 = 功率传感器
+            if sub == SUBMODE_POWER:
+                schema[vol.Optional(
+                    CONF_POWER_SENSOR,
+                    description={"suggested_value": self.options.get(CONF_POWER_SENSOR)}
+                )] = selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                )
+
+            # 子模式 = binary_sensor
+            if sub == SUBMODE_BINARY:
+                schema[vol.Optional(
+                    CONF_BINARY_SENSOR,
+                    description={"suggested_value": self.options.get(CONF_BINARY_SENSOR)}
+                )] = selector.EntitySelector(
+                    selector.EntitySelectorConfig(
+                        domain="binary_sensor"
+                    )
+                )
+
+
+        return self.async_show_form(step_id="basic_config", data_schema=vol.Schema(schema))
+
 
     # 按键配置步骤 (通用)
     async def _manage_btns(self, step_id, keys, user_input):
