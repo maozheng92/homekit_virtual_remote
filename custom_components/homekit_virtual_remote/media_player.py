@@ -373,6 +373,7 @@ class HKVirtualRemote(RestoreEntity, MediaPlayerEntity):
 
     async def async_added_to_hass(self):
         await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
         if last_state:
             try:
                 self._state = MediaPlayerState(last_state.state)
