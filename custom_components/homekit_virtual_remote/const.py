@@ -16,6 +16,7 @@ CONF_SOURCE_ICON = "icon"
 CONF_BTN_SELECT_SOURCE = "btn_select_source"
 SUBMODE_POWER = "power"
 SUBMODE_BINARY = "binary"
+CONF_SUBMODE = "submode"
 
 # 所有物理按键常量
 CONF_BTN_POWER_ON = "btn_power_on"
