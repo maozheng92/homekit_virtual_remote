@@ -230,7 +230,7 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             for key in keys:
                 self.options[key] = user_input.get(key)
-            return await self.__update_entry()
+            return await self._update_entry()
 
         return self.async_show_form(
             step_id=step_id,
