@@ -32,6 +32,7 @@
           "device_ip": "设备 IP",
           "power_on_entity": "开机实体 (可选)",
           "remote_mode": "控制模式",
+          "submode": "传感器模式",
           "power_sensor": "功率传感器 (可选)",
           "binary_sensor": "传感器 (可选)"
         }
