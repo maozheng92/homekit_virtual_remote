@@ -5,6 +5,7 @@ MODE_ACTION = "mode_action"
 MODE_PHICOMM = "mode_phicomm"
 MODE_ADB = "mode_adb"
 CONF_POWER_SENSOR = "power_sensor"
+CONF_POWER_ON_ENTITY = "power_on_entity"
 CONF_POWER_THRESHOLD = "power_threshold"
 DEFAULT_POWER_THRESHOLD = 10.0
 CONF_BINARY_SENSOR = "binary_sensor"
@@ -13,6 +14,8 @@ CONF_SOURCE_NAME = "name"
 CONF_SOURCE_ID = "id"
 CONF_SOURCE_ICON = "icon"
 CONF_BTN_SELECT_SOURCE = "btn_select_source"
+SUBMODE_POWER = "power"
+SUBMODE_BINARY = "binary"
 
 # 所有物理按键常量
 CONF_BTN_POWER_ON = "btn_power_on"
