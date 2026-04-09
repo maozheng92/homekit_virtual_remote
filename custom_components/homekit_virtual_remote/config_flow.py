@@ -375,7 +375,6 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="sync_input_select_confirm",
             data_schema=vol.Schema({}),
-            description="将根据输入选择自动生成输入源，是否继续？"
         )
 
 
