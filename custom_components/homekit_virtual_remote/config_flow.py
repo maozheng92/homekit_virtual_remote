@@ -369,6 +369,7 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
         return self.async_abort(reason="sync_failed")
 
     async def async_step_sync_input_select(self, user_input=None):
+        # 1. 获取基础设置中选中的 input_select
         input_select = self.options.get(CONF_INPUT_SELECT_SOURCE)
         if not input_select:
             return self.async_abort(reason="no_input_select")
@@ -377,11 +378,13 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
         if not state:
             return self.async_abort(reason="input_select_not_found")
 
+        # 2. 获取 input_select 的 options
         options = state.attributes.get("options", [])
         current = list(self.options.get(CONF_SOURCES, []) or [])
 
         new_indexes = []
 
+        # 3. 将每个 option 转成输入源
         for opt in options:
             sid = f"custom_src_{opt}"
             if not any(s.get(CONF_SOURCE_NAME) == opt for s in current):
@@ -394,11 +397,14 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
 
         self.options[CONF_SOURCES] = current
 
+        # 4. 模仿 async_step_source_add：新增输入源后立即跳到编辑界面
         if new_indexes:
             self._edit_index = new_indexes[0]
             return await self.async_step_source_edit()
 
-        return await self._update_entry()
+        # 5. 如果没有新增输入源，则返回输入源管理界面
+        return await self.async_step_source_config()
+
 
     async def async_step_source_add(self, user_input=None):
         if user_input:
