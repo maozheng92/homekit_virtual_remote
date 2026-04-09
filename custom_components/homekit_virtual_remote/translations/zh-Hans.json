@@ -101,6 +101,11 @@
         "description": "点击提交以同步 input_select 的选项。",
         "data": {}
       },
+      "source_edit_list": {
+        "title": "输入源动作设置",
+        "description": "为每个输入源设置动作。",
+        "data": {}
+      },
       "source_edit": {
         "title": "编辑动作",
         "description": "为 {name} 设置动作序列。",

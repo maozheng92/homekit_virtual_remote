@@ -118,6 +118,27 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
             description_placeholders={"name": target[CONF_SOURCE_NAME]},
         )
 
+    async def async_step_source_edit_list(self, user_input=None):
+        if user_input is not None:
+            # 用户点击提交 → 保存并进入图三
+            return await self._update_entry()
+
+        sources = self.options.get(CONF_SOURCES, []) or []
+
+        # 构建动态 schema：每个输入源一个 ActionSelector
+        schema = {}
+        for src in sources:
+            sid = src[CONF_SOURCE_ID]
+            schema[vol.Optional(
+                sid,
+                description={"suggested_value": self.options.get(sid)}
+            )] = selector.ActionSelector()
+
+        return self.async_show_form(
+            step_id="source_edit_list",
+            data_schema=vol.Schema(schema),
+        )
+
     async def _update_entry(self):
         final_config = {
             k: (None if v in ["", [], {}] else v)
@@ -368,16 +389,6 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
             pass
         return self.async_abort(reason="sync_failed")
 
-    async def async_step_sync_input_select_confirm(self, user_input=None):
-        if user_input is not None:
-            return await self.async_step_sync_input_select()
-
-        return self.async_show_form(
-            step_id="sync_input_select_confirm",
-            data_schema=vol.Schema({}),
-        )
-
-
     async def async_step_sync_input_select(self, user_input=None):
         if user_input is None:
             # 第一次进入：显示一个空表单（必须有 UI）
@@ -412,11 +423,7 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
 
         self.options[CONF_SOURCES] = current
 
-        if new_indexes:
-            self._edit_index = new_indexes[0]
-            return await self.async_step_source_edit()
-
-        return await self.async_step_source_config()
+        return await self.async_step_source_edit_list()
 
 
     async def async_step_source_add(self, user_input=None):
