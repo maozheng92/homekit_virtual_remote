@@ -129,6 +129,15 @@ class HKVirtualRemote(RestoreEntity, MediaPlayerEntity):
     async def async_update(self):
         """状态轮询"""
         now = time.time()
+
+        # 同步 input_select 状态
+        input_select = self._config.get(CONF_INPUT_SELECT_SOURCE)
+        if input_select:
+            state = self.hass.states.get(input_select)
+            if state:
+                value = state.state
+                if value in [s[CONF_SOURCE_NAME] for s in self._sources]:
+                    self._current_source = value
         
         # ADB 自动重连
         if self._mode == MODE_ADB and self._adb:

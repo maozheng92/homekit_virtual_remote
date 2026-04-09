@@ -31,6 +31,7 @@
         "data": {
           "device_ip": "设备 IP",
           "power_on_entity": "开机实体 (可选)",
+          "input_select_source": "输入源状态 (可选)",
           "remote_mode": "控制模式",
           "submode": "传感器模式",
           "power_sensor": "功率传感器 (可选)",
@@ -96,7 +97,9 @@
     },
     "abort": {
       "no_ip": "当前未配置设备 IP，无法同步应用列表。",
-      "sync_failed": "同步应用列表失败，请检查设备在线状态。"
+      "sync_failed": "同步应用列表失败，请检查设备在线状态。",
+      "no_input_select": "未选择 input_select，无法同步输入源。",
+      "input_select_not_found": "找不到指定的 input_select 实体。"
     }
   }
 }

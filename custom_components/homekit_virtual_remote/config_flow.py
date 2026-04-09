@@ -124,6 +124,7 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
             CONF_SUBMODE,
             CONF_POWER_SENSOR,
             CONF_BINARY_SENSOR,
+            CONF_INPUT_SELECT_SOURCE,
         ]
 
         errors = {}
@@ -171,6 +172,13 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
                 selector.EntitySelectorConfig(
                     domain=["switch", "script", "scene", "input_boolean"]
                 )
+            ),
+
+            vol.Optional(
+                CONF_INPUT_SELECT_SOURCE,
+                description={"suggested_value": self.options.get(CONF_INPUT_SELECT_SOURCE)},
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="input_select")
             ),
 
             vol.Required(CONF_MODE, default=current_mode): selector.SelectSelector(
@@ -277,6 +285,8 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
             act = user_input.get("action")
             if act == "sync":
                 return await self.async_step_do_sync()
+            if act == "sync_input_select":
+                return await self.async_step_sync_input_select()
             if act == "add":
                 return await self.async_step_source_add()
             if act == "del":
@@ -294,6 +304,7 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
                         selector.SelectSelectorConfig(
                             options=[
                                 {"label": "⚡ 同步斐讯 App", "value": "sync"},
+                                {"label": "🔄 同步 input_select", "value": "sync_input_select"},
                                 {"label": "➕ 添加自定义动作源", "value": "add"},
                                 {"label": "🗑️ 删除输入源", "value": "del"},
                                 {"label": "⬅️ 返回", "value": "back"},
@@ -332,6 +343,30 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
         except Exception:
             pass
         return self.async_abort(reason="sync_failed")
+
+    async def async_step_sync_input_select(self, user_input=None):
+        input_select = self.options.get(CONF_INPUT_SELECT_SOURCE)
+        if not input_select:
+            return self.async_abort(reason="no_input_select")
+
+        state = self.hass.states.get(input_select)
+        if not state:
+            return self.async_abort(reason="input_select_not_found")
+
+        options = state.attributes.get("options", [])
+        current = list(self.options.get(CONF_SOURCES, []) or [])
+
+        for opt in options:
+            sid = f"custom_src_{opt}"
+            if not any(s.get(CONF_SOURCE_NAME) == opt for s in current):
+                current.append({
+                    CONF_SOURCE_NAME: opt,
+                    CONF_SOURCE_ID: sid,
+                    CONF_SOURCE_ICON: "mdi:script-text-outline"
+                })
+
+        self.options[CONF_SOURCES] = current
+        return await self._update_entry()
 
     async def async_step_source_add(self, user_input=None):
         if user_input:
