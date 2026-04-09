@@ -90,6 +90,23 @@
       "sync_done": {
         "title": "同步成功",
         "description": "{msg}"
+      },
+      "sync_input_select_confirm": {
+        "title": "同步输入选择",
+        "description": "将根据 input_select 自动生成输入源，是否继续？",
+        "data": {}
+      },
+      "sync_input_select": {
+        "title": "同步输入选择",
+        "description": "点击提交以同步 input_select 的选项。",
+        "data": {}
+      },
+      "source_edit": {
+        "title": "编辑动作",
+        "description": "为 {name} 设置动作序列。",
+        "data": {
+          "actions": "动作序列"
+        }
       }
     },
     "error": {
