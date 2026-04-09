@@ -120,15 +120,22 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_source_edit_list(self, user_input=None):
         if user_input is not None:
-            # 用户点击提交 → 保存并进入图三
+            # 用户点击提交 → 保存
             return await self._update_entry()
 
         sources = self.options.get(CONF_SOURCES, []) or []
 
         # 构建动态 schema：每个输入源一个 ActionSelector
         schema = {}
+        description_placeholders = {}
+
         for src in sources:
             sid = src[CONF_SOURCE_ID]
+            name = src[CONF_SOURCE_NAME]
+
+            # UI 显示 HDMI1 / HDMI2 / TV
+            description_placeholders[sid] = name
+
             schema[vol.Optional(
                 sid,
                 description={"suggested_value": self.options.get(sid)}
@@ -137,6 +144,7 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="source_edit_list",
             data_schema=vol.Schema(schema),
+            description_placeholders=description_placeholders
         )
 
     async def _update_entry(self):
