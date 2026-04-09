@@ -135,14 +135,8 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
             schema[vol.Optional(
                 sid,
                 description={"suggested_value": self.options.get(sid)}
-            )] = selector.ActionSelector(
-                selector.ObjectSelectorConfig(
-                    title=name,
-                    options={
-                        "actions": selector.ActionSelector()
-                    }
-                )
-            )
+                label=name 
+            )] = selector.ActionSelector()
 
         return self.async_show_form(
             step_id="source_edit_list",
