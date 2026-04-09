@@ -127,20 +127,20 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
 
         # 构建动态 schema：每个输入源一个 ActionSelector
         schema = {}
+        description_placeholders = {}
 
         for src in sources:
             sid = src[CONF_SOURCE_ID]
             name = src[CONF_SOURCE_NAME]
 
-            schema[vol.Optional(
-                sid,
-                description={"suggested_value": self.options.get(sid)}
-                label=name 
-            )] = selector.ActionSelector()
+            description_placeholders[sid] = name
+
+            schema[vol.Optional(sid)] = selector.ActionSelector()
 
         return self.async_show_form(
             step_id="source_edit_list",
             data_schema=vol.Schema(schema),
+            description_placeholders=description_placeholders
         )
 
     async def _update_entry(self):
