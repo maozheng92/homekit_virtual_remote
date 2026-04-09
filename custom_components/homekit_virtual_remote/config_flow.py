@@ -94,6 +94,30 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
         except Exception:
             return text
 
+    async def async_step_source_edit(self, user_input=None):
+        idx = self._edit_index
+        srcs = list(self.options.get(CONF_SOURCES, []) or [])
+        target = srcs[idx]
+        sid = target[CONF_SOURCE_ID]
+
+        if user_input is not None:
+            # 保存动作
+            self.options[sid] = user_input.get("actions")
+            return await self._update_entry()
+
+        return self.async_show_form(
+            step_id="source_edit",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        "actions",
+                        description={"suggested_value": self.options.get(sid)}
+                    ): selector.ActionSelector()
+                }
+            ),
+            description_placeholders={"name": target[CONF_SOURCE_NAME]},
+        )
+
     async def _update_entry(self):
         final_config = {
             k: (None if v in ["", [], {}] else v)
@@ -304,7 +328,7 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
                         selector.SelectSelectorConfig(
                             options=[
                                 {"label": "⚡ 同步斐讯 App", "value": "sync"},
-                                {"label": "🔄 同步 input_select", "value": "sync_input_select"},
+                                {"label": "🔄 同步输入选择", "value": "sync_input_select"},
                                 {"label": "➕ 添加自定义动作源", "value": "add"},
                                 {"label": "🗑️ 删除输入源", "value": "del"},
                                 {"label": "⬅️ 返回", "value": "back"},
@@ -356,6 +380,8 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
         options = state.attributes.get("options", [])
         current = list(self.options.get(CONF_SOURCES, []) or [])
 
+        new_indexes = []
+
         for opt in options:
             sid = f"custom_src_{opt}"
             if not any(s.get(CONF_SOURCE_NAME) == opt for s in current):
@@ -364,8 +390,14 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_SOURCE_ID: sid,
                     CONF_SOURCE_ICON: "mdi:script-text-outline"
                 })
+                new_indexes.append(len(current) - 1)
 
         self.options[CONF_SOURCES] = current
+
+        if new_indexes:
+            self._edit_index = new_indexes[0]
+            return await self.async_step_source_edit()
+
         return await self._update_entry()
 
     async def async_step_source_add(self, user_input=None):
