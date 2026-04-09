@@ -25,6 +25,15 @@ ACTIVE_KEY_GRACE_SECONDS = 45
 ONLINE_WAIT_TIMEOUT_SECONDS = 120
 ONLINE_WAIT_INTERVAL_SECONDS = 2
 
+ICON_MAP = {
+    "HDMI1": "mdi:video-input-hdmi",
+    "HDMI2": "mdi:video-input-hdmi",
+    "HDMI3": "mdi:video-input-hdmi",
+    "HDMI4": "mdi:video-input-hdmi",
+    "TV": "mdi:television-classic",
+    "AV": "mdi:audio-video",
+}
+
 # 标准安卓按键映射
 KEY_MAP = {
     CONF_BTN_UP: 19,
@@ -57,7 +66,123 @@ HK_KEY_MAP = {
 async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities([HKVirtualRemote(hass, entry)])
 
+class VirtualTV(MediaPlayerEntity):
+
+    def __init__(self, name, coordinator):
+        self._attr_name = name
+        self._coordinator = coordinator
+
+        self._current_source = None
+        self._is_on = False
+
+        # 媒体信息属性
+        self._attr_media_title = None
+        self._attr_media_image_url = None
+        self._attr_media_content_id = None
+        self._attr_media_content_type = "channel"
+        self._attr_media_playback_state = MediaPlayerState.OFF
+
+        # 动态特性
+        self._attr_supported_features = (
+            MediaPlayerEntityFeature.TURN_ON
+            | MediaPlayerEntityFeature.TURN_OFF
+            | MediaPlayerEntityFeature.SELECT_SOURCE
+        )
+
+    # ========== 开关 ==========
+    def turn_on(self):
+        self._is_on = True
+        self._update_media_info()
+        self.async_write_ha_state()
+
+    def turn_off(self):
+        self._is_on = False
+        self._attr_media_playback_state = MediaPlayerState.OFF
+        self.async_write_ha_state()
+
+    # ========== 输入源 ==========
+    @property
+    def source(self):
+        return self._current_source
+
+    @property
+    def source_list(self):
+        return list(ICON_MAP.keys())
+
+    def select_source(self, source):
+        self._current_source = source
+        self._update_media_info()
+        self.async_write_ha_state()
+
+    # ========== 媒体信息核心逻辑 ==========
+    def _update_media_info(self):
+        """核心：媒体信息 = 当前输入源（与 webostv / braviatv 完全一致）"""
+
+        if not self._is_on:
+            self._attr_media_playback_state = MediaPlayerState.OFF
+            return
+
+        if not self._current_source:
+            self._attr_media_playback_state = MediaPlayerState.IDLE
+            self._attr_media_title = None
+            self._attr_media_image_url = None
+            return
+
+        # 媒体标题 = 当前输入源
+        self._attr_media_title = self._current_source
+
+        # 媒体图标 = 当前输入源图标
+        icon = ICON_MAP.get(self._current_source, "mdi:television")
+        self._attr_media_image_url = f"/api/icon/{icon}"
+
+        # 媒体内容 ID = 当前输入源
+        self._attr_media_content_id = self._current_source
+
+        # 媒体状态 = playing（电视开机 + 有输入源）
+        self._attr_media_playback_state = MediaPlayerState.PLAYING
+
+    # ========== 状态属性 ==========
+    @property
+    def state(self):
+        if not self._is_on:
+            return MediaPlayerState.OFF
+        return MediaPlayerState.ON
+
+
 class HKVirtualRemote(RestoreEntity, MediaPlayerEntity):
+    # ========== 媒体信息属性 ==========
+    @property
+    def media_title(self):
+        """媒体标题 = 当前输入源"""
+        return self._current_source
+
+    @property
+    def media_image_url(self):
+        """媒体图标 = 当前输入源图标"""
+        if not self._current_source:
+            return None
+        icon = ICON_MAP.get(self._current_source, "mdi:television")
+        return f"/api/icon/{icon}"
+
+    @property
+    def media_content_id(self):
+        """媒体内容 ID = 当前输入源"""
+        return self._current_source
+
+    @property
+    def media_content_type(self):
+        return "channel"
+
+    @property
+    def media_playback_state(self):
+        """媒体状态 = playing / idle / off"""
+        if self._state == MediaPlayerState.OFF:
+            return MediaPlayerState.OFF
+        if not self._current_source:
+            return MediaPlayerState.IDLE
+        return MediaPlayerState.PLAYING
+
+
     _attr_device_class = MediaPlayerDeviceClass.TV
     _attr_supported_features = (
         MediaPlayerEntityFeature.TURN_ON |
