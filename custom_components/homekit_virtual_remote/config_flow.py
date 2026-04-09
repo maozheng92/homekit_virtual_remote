@@ -310,7 +310,7 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
             if act == "sync":
                 return await self.async_step_do_sync()
             if act == "sync_input_select":
-                return await self.async_step_sync_input_select()
+                return await self.async_step_sync_input_select_confirm()
             if act == "add":
                 return await self.async_step_source_add()
             if act == "del":
@@ -367,6 +367,17 @@ class HKRemoteOptionsFlowHandler(config_entries.OptionsFlow):
         except Exception:
             pass
         return self.async_abort(reason="sync_failed")
+
+    async def async_step_sync_input_select_confirm(self, user_input=None):
+        if user_input is not None:
+            return await self.async_step_sync_input_select()
+
+        return self.async_show_form(
+            step_id="sync_input_select_confirm",
+            data_schema=vol.Schema({}),
+            description="将根据输入选择自动生成输入源，是否继续？"
+        )
+
 
     async def async_step_sync_input_select(self, user_input=None):
         # 1. 获取基础设置中选中的 input_select
