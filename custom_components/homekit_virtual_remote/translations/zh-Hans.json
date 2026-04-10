@@ -103,7 +103,7 @@
       },
       "source_edit_list": {
         "title": "输入源动作设置",
-        "description": "为每个输入源设置动作：\n{name}",
+        "description": "为每个输入源设置动作。",
         "data": {}
       },
       "source_edit": {
