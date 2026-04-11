@@ -29,15 +29,6 @@ ACTIVE_KEY_GRACE_SECONDS = 45
 ONLINE_WAIT_TIMEOUT_SECONDS = 120
 ONLINE_WAIT_INTERVAL_SECONDS = 2
 
-ICON_MAP = {
-    "HDMI1": "HDMI.png",
-    "HDMI2": "HDMI.png",
-    "HDMI3": "HDMI.png",
-    "HDMI4": "HDMI.png",
-    "TV": "TV.png",
-    "AV": "AV.png",
-}
-
 # 标准安卓按键映射
 KEY_MAP = {
     CONF_BTN_UP: 19,
@@ -119,23 +110,6 @@ class HKVirtualRemote(RestoreEntity, MediaPlayerEntity):
     def media_title(self):
         """媒体标题 = 当前输入源"""
         return self._current_source
-
-    @property
-    def media_image_url(self):
-        """媒体图标 = 当前输入源图标"""
-        if not self._current_source:
-            return None
-        icon = ICON_MAP.get(self._current_source, "default.png")
-        return f"/local/icons/{icon}"
-
-    @property
-    def media_image_hash(self):
-        """用于前端缓存的图标哈希"""
-        if not self._current_source:
-            return None
-        icon = ICON_MAP.get(self._current_source, "default.png")
-        # 简单稳定的 hash：基于 icon 名称
-        return f"hkvr-{icon}"
 
     @property
     def media_content_id(self):
@@ -419,19 +393,17 @@ class HKVirtualRemote(RestoreEntity, MediaPlayerEntity):
 
     # ========== 截图 ==========
     async def async_get_media_image(self):
-        """斐讯模式支持截图，其它模式禁用截图接口"""
-        if self._mode != MODE_PHICOMM:
-            return None
+        """斐讯模式支持截图"""
+        if self._state != MediaPlayerState.ON or self._mode != MODE_PHICOMM or not self._ip:
+            return None, None
         try:
             session = async_get_clientsession(self.hass)
-            async with session.get(
-                f"http://{self._ip}:8080/v1/screenshot", timeout=3
-            ) as r:
+            async with session.get(f"http://{self._ip}:8080/v1/screenshot", timeout=3) as r:
                 if r.status == 200:
                     return await r.read(), "image/jpeg"
         except Exception as err:
             _LOGGER.debug("截图获取失败 %s: %s", self._ip, err)
-        return None
+        return None, None
 
     # ========== 音量 / 播放控制 ==========
     async def async_volume_up(self):
