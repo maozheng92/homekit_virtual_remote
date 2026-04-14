@@ -3,11 +3,16 @@ import logging
 import os
 import time
 
+from datetime import datetime
+from .entity import HKVRBaseEntity
+from .remote import HKVirtualRemoteRemote
+
 from homeassistant.components.media_player import (
     MediaPlayerDeviceClass,
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
     MediaPlayerState,
+    MediaType,
 )
 from homeassistant.components.media_player.browse_media import (
     BrowseMedia,
@@ -60,12 +65,18 @@ HK_KEY_MAP = {
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    async_add_entities([HKVirtualRemote(hass, entry)])
+    tv = HKVirtualRemote(hass, entry)
+    # 保存 TV 实例供 remote 平台使用
+    hass.data.setdefault("homekit_virtual_remote", {})
+    hass.data["homekit_virtual_remote"][entry.entry_id] = {"tv": tv}
+    async_add_entities([tv])
 
 
-class HKVirtualRemote(RestoreEntity, MediaPlayerEntity):
+class HKVirtualRemote(HKVRBaseEntity, MediaPlayerEntity, RestoreEntity):
     """完整 TV 版虚拟遥控器 / 电视实体"""
 
+    _attr_volume_level = 0.1
+    _attr_is_volume_muted = False
     _attr_device_class = MediaPlayerDeviceClass.TV
     _attr_supported_features = (
         MediaPlayerEntityFeature.TURN_ON
@@ -73,13 +84,18 @@ class HKVirtualRemote(RestoreEntity, MediaPlayerEntity):
         | MediaPlayerEntityFeature.PLAY
         | MediaPlayerEntityFeature.PAUSE
         | MediaPlayerEntityFeature.VOLUME_STEP
+        | MediaPlayerEntityFeature.VOLUME_SET
         | MediaPlayerEntityFeature.VOLUME_MUTE
         | MediaPlayerEntityFeature.SELECT_SOURCE
         | MediaPlayerEntityFeature.BROWSE_MEDIA
         | MediaPlayerEntityFeature.PLAY_MEDIA
+        | MediaPlayerEntityFeature.STOP
     )
 
+
     def __init__(self, hass, entry):
+        HKVRBaseEntity.__init__(self, entry)
+        MediaPlayerEntity.__init__(self)
         self.hass = hass
         self._entry = entry
         self._attr_unique_id = entry.entry_id
@@ -104,6 +120,18 @@ class HKVirtualRemote(RestoreEntity, MediaPlayerEntity):
         self._scripts: dict[str, Script] = {}
 
         self._reload()
+    
+    async def async_get_last_state(self):
+        # 禁用 RestoreEntity 的恢复机制
+        return None
+    
+    @property
+    def volume_level(self):
+        return self._attr_volume_level
+
+    @property
+    def is_volume_muted(self):
+        return self._attr_is_volume_muted
 
     # ========== 媒体信息属性 ==========
     @property
@@ -114,11 +142,32 @@ class HKVirtualRemote(RestoreEntity, MediaPlayerEntity):
     @property
     def media_content_id(self):
         """媒体内容 ID = 当前输入源"""
-        return self._current_source
+        # ★ 修改点：当当前源为空时，回退到第一个可用源，保证 HomeKit 有有效 ActiveIdentifier
+        if self._current_source:
+            return f"app://{self._current_source}"
+        sources = self.source_list
+        return f"app://{sources[0]}" if sources else None
 
     @property
     def media_content_type(self):
-        return "channel"
+        return MediaType.APP
+    
+    @property
+    def media_duration(self):
+        return 1  # 任意非空值即可
+
+    @property
+    def media_position(self):
+        return 0
+
+    @property
+    def media_position_updated_at(self):
+        return datetime.now()
+
+    @property
+    def media_channel(self):
+        return self._current_source
+
 
     @property
     def media_playback_state(self):
@@ -129,10 +178,15 @@ class HKVirtualRemote(RestoreEntity, MediaPlayerEntity):
             return MediaPlayerState.IDLE
         return MediaPlayerState.PLAYING
 
+
     # ========== 源列表 ==========
     @property
     def source_list(self):
-        return [s[CONF_SOURCE_NAME] for s in self._sources]
+        # ★ 修改点：保证 source_list 永远非空，HomeKit 电视必须有至少一个输入源
+        names = [s[CONF_SOURCE_NAME] for s in self._sources]
+        if names:
+            return names
+        return ["HDMI 1"]
 
     @property
     def source(self):
@@ -141,6 +195,7 @@ class HKVirtualRemote(RestoreEntity, MediaPlayerEntity):
     # ========== 设备信息 ==========
     @property
     def device_info(self):
+        # ★ 保持：完整稳定的 device_info，对标官方电视集成
         return DeviceInfo(
             identifiers={(DOMAIN, self._attr_unique_id)},
             name=self._entry.title,
@@ -267,6 +322,15 @@ class HKVirtualRemote(RestoreEntity, MediaPlayerEntity):
                 return True
             await asyncio.sleep(ONLINE_WAIT_INTERVAL_SECONDS)
         return await self._is_device_online()
+        
+    async def async_send_command(self, command: list[str], **kwargs):
+        """HomeKit 遥控器按键入口"""
+        key = command[0] if command else None
+        config_key = HK_KEY_MAP.get(key)
+        if not config_key:
+            return
+        self._set_boot_grace(ACTIVE_KEY_GRACE_SECONDS)
+        await self._run(config_key)
 
     # ========== 按键执行 ==========
     async def _run(self, key):
@@ -336,6 +400,8 @@ class HKVirtualRemote(RestoreEntity, MediaPlayerEntity):
         """核心：切换输入源（包含 App 和 自定义动作）"""
         src = next((s for s in self._sources if s[CONF_SOURCE_NAME] == source), None)
         if not src:
+            # ★ 修改点：未知源时静默忽略，避免 HomeKit 调用异常
+            _LOGGER.debug("未知输入源 %s，忽略", source)
             return
 
         sid = src.get(CONF_SOURCE_ID)
@@ -390,7 +456,7 @@ class HKVirtualRemote(RestoreEntity, MediaPlayerEntity):
         await self._run(CONF_BTN_POWER_OFF)
         self._state = MediaPlayerState.OFF
         self.async_write_ha_state()
-
+    
     # ========== 截图 ==========
     async def async_get_media_image(self):
         """斐讯模式支持截图"""
@@ -415,8 +481,9 @@ class HKVirtualRemote(RestoreEntity, MediaPlayerEntity):
         await self._run(CONF_BTN_VOL_DOWN)
 
     async def async_mute_volume(self, mute):
-        self._set_boot_grace(ACTIVE_KEY_GRACE_SECONDS)
+        self._attr_is_volume_muted = mute
         await self._run(CONF_BTN_MUTE)
+        self.async_write_ha_state()
 
     async def async_media_play(self):
         self._set_boot_grace(ACTIVE_KEY_GRACE_SECONDS)
@@ -425,6 +492,19 @@ class HKVirtualRemote(RestoreEntity, MediaPlayerEntity):
     async def async_media_pause(self):
         self._set_boot_grace(ACTIVE_KEY_GRACE_SECONDS)
         await self._run(CONF_BTN_PLAY_PAUSE)
+    
+    async def async_media_stop(self):
+        self._set_boot_grace(ACTIVE_KEY_GRACE_SECONDS)
+        await self._run(CONF_BTN_BACK)
+    
+    async def async_set_volume_level(self, volume):
+        self._attr_volume_level = volume
+        # 你已有的音量逻辑
+        steps = int(volume * 10)
+        for _ in range(steps):
+            await self._run(CONF_BTN_VOL_UP)
+            await asyncio.sleep(0.05)
+        self.async_write_ha_state()
 
     # ========== 媒体浏览 / 播放 ==========
     async def async_browse_media(self, media_content_type=None, media_content_id=None):
@@ -465,6 +545,7 @@ class HKVirtualRemote(RestoreEntity, MediaPlayerEntity):
     # ========== 状态 / 事件 ==========
     @property
     def state(self):
+        # ★ 保持：状态只在 async_update 中设为 ON/OFF，不会出现 UNKNOWN/UNAVAILABLE
         return self._state
 
     @callback
@@ -483,17 +564,20 @@ class HKVirtualRemote(RestoreEntity, MediaPlayerEntity):
         await self._run(config_key)
 
     async def async_added_to_hass(self):
+        # ★ 强制设置初始状态，避免 state=None
+        self._state = MediaPlayerState.OFF
+        
         await super().async_added_to_hass()
+        
         last_state = await self.async_get_last_state()
         if last_state:
-            try:
-                self._state = MediaPlayerState(last_state.state)
-            except ValueError:
-                pass
-
             restored_source = last_state.attributes.get("source")
             if restored_source in self.source_list:
                 self._current_source = restored_source
+
+        # ★ 可选增强：如果没有恢复到 source，且有可用源，则默认选第一个
+        if not self._current_source and self.source_list:
+            self._current_source = self.source_list[0]
 
         self.async_on_remove(
             self.hass.bus.async_listen(

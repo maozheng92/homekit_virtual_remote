@@ -2,10 +2,14 @@
   "domain": "homekit_virtual_remote",
   "name": "HomeKit 虚拟遥控器",
   "documentation": "https://github.com/maozheng92/homekit_virtual_remote",
+  "issue_tracker": "https://github.com/maozheng92/homekit_virtual_remote/issues",
   "dependencies": [],
-  "codeowners": ["@maozheng92"],
+  "codeowners": [ "@maozheng92" ],
   "config_flow": true,
   "iot_class": "local_push",
-  "requirements": ["adb_shell>=0.4.0"],
-  "version": "1.1.0"
+  "requirements": [ "adb_shell>=0.4.0" ],
+  "integration_type": "device",
+  "version": "1.1.0",
+  "platforms": [ "media_player", "remote" ],
+  "loggers": [ "homekit_virtual_remote" ]
 }
